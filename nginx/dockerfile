@@ -1,0 +1,68 @@
+FROM centos:7.6.1810
+
+LABEL maintainer="shaohq@foxmail.com"
+
+ENV  TIME_ZONE Asia/Shanghai
+RUN yum -y install gcc gcc-c++ autoconf automake \
+    && yum -y install zlib  zlib-devel openssl openssl-devel pcre-devel
+
+ENV  TIME_ZONE Asia/Shanghai
+COPY docker/nginx/* /temp/
+RUN groupadd -r nginx \
+    && useradd -s /sbin/nologin -g nginx -r nginx \
+    && id nginx \
+    && cd /temp \
+    && tar -zxvf nginx-1.15.12.tar.gz \
+    && tar -zxvf pcre-8.42.tar.gz \
+    && tar -zxvf zlib-1.2.11.tar.gz \
+    && tar -zxvf openssl-1.1.1b.tar.gz \
+    && tar -zxvf nginx-module-vts-0.1.18.tar.gz \
+    && tar -zxvf nginx-vts-exporter-0.10.3.linux-amd64.tar.gz \
+    # 安装 nginx-vts-exporter
+    && cp nginx-vts-exporter-0.10.3.linux-amd64/nginx-vts-exporter /usr/local/bin \
+    && chmod +x /usr/local/bin/nginx-vts-exporter \
+    # 编译及安装 nginx
+    && cd nginx-1.15.12 \
+    && ./configure \
+    --prefix=/usr/local/nginx \
+    --with-http_ssl_module \
+    --with-pcre=../pcre-8.42 \
+    --with-zlib=../zlib-1.2.11 \
+    --with-openssl=../openssl-1.1.1b \
+    --with-http_stub_status_module \
+    --add-module=../nginx-module-vts-0.1.18 \
+    --with-stream \
+    --with-stream=dynamic \
+    --with-stream_ssl_module \
+    --with-http_gzip_static_module \
+    --user=nginx \
+    --group=nginx \
+    && make && make install \
+    && ln -s /usr/local/nginx/sbin/nginx  /bin/nginx \
+    && mkdir /usr/local/nginx/conf.d \
+    && rm -f /usr/local/nginx/conf/nginx.conf \
+    && rm -rf /temp
+
+COPY docker/nginx.conf /usr/local/nginx/conf/nginx.conf
+COPY docker/entrypoint.sh /entrypoint.sh
+COPY docker/entrypoint_start_exporter.sh /entrypoint_start_exporter.sh
+COPY docker/entrypoint_start_eureka_client.sh /entrypoint_start_eureka_client.sh
+COPY eureka-client-standalone/target/eureka-client-standalone-0.1.0.jar /eip/eureka-client-standalone-0.1.0.jar
+
+RUN chmod +x /entrypoint.sh \
+    && chmod +x /entrypoint_start_exporter.sh \
+    && chmod +x /entrypoint_start_eureka_client.sh
+
+ADD docker/jdk-8u202-linux-x64.tar.gz /var/lib/
+ENV JAVA_HOME /var/lib/jdk1.8.0_202/
+ENV PATH $PATH:/var/lib/jdk1.8.0_202/bin/
+
+ENV eureka.region=default
+ENV eureka.name=no-name
+ENV eureka.port=80
+ENV eureka.management.port=9913
+ENV eureka.preferSameZone=true
+ENV eureka.shouldUseDns=false
+ENV eureka.serviceUrl.default=http://monitor-eureka:9000/eureka
+
+CMD ["/entrypoint.sh"]

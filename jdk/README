@@ -1,0 +1,5 @@
+# JDK
+
+* 基于centos:7.6.1810
+  * 安装 jdk-8u202-linux-x64.tar.gz
+  * 设置系统时区为 Asia/Shanghai

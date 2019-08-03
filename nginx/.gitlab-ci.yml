@@ -1,0 +1,42 @@
+variables:
+  DOCKER_IMAGE_TAG: $DOCKER_REGISTRY/library/$CI_PROJECT_NAME:$CI_COMMIT_REF_NAME
+
+cache:
+  paths:
+    - eureka-client-standalone/target
+
+stages:
+  - build
+  - push
+
+maven-build:
+  stage: build
+  tags:
+    - build
+  script:
+    - cd eureka-client-standalone
+    - mvn clean package -Dmaven.test.skip=true
+    - cd ..
+
+docker-build:
+  stage: build
+  only:
+    variables:
+      - $CI_COMMIT_TAG
+  tags:
+    - build
+  script:
+    - docker build -t $DOCKER_IMAGE_TAG .
+
+docker-push:
+  stage: push
+  when: manual
+  only:
+    variables:
+      - $CI_COMMIT_TAG
+  tags:
+    - build
+  script:
+    - docker login -u $DOCKER_REGISTRY_BUILDER -p $DOCKER_REGISTRY_BUILDER_PASSWORD $DOCKER_REGISTRY
+    - docker push $DOCKER_IMAGE_TAG
+    - docker logout $DOCKER_REGISTRY

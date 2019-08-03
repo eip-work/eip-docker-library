@@ -1,0 +1,9 @@
+version: "3"
+services:
+  nginx-eureka:
+    image: db-enduser:eureka
+    ports:
+      - "3306:3306"
+    environment:
+      eureka.serviceUrl.default: http://monitor-eureka/eureka
+      # ENABLE_EUREKA_CLIENT: "FA"
